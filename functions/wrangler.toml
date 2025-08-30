@@ -1,4 +1,4 @@
 name = "quota-crushers-backend"
-main = "src/index.js"
+main = "_worker.js"
 compatibility_date = "2024-01-01"
 
