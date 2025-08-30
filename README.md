@@ -1,6 +1,5 @@
 # Quota Crushers - Sales Motivation Platform
 
-//testingtesting123
 
 Quota Crushers is a comprehensive sales motivation and tracking platform built with React and Cloudflare infrastructure.
 
