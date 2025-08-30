@@ -1,10 +1,10 @@
-// API service for communicating with Cloudflare Workers backend
+// API service for communicating with the integrated Cloudflare Pages backend
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.PROD 
-    ? 'https://quota-crushers-api.burrito-bot.workers.dev' 
+    ? '' // In production, the API is on the same domain, so we use a relative path
     : 'http://localhost:8787');
 
-console.log('🔗 API Base URL:', API_BASE_URL);
+console.log('🔗 API Base URL:', API_BASE_URL || '(same domain)');
 console.log('🌍 Environment:', import.meta.env.PROD ? 'Production' : 'Development');
 
 class ApiService {
@@ -23,10 +23,16 @@ class ApiService {
       const response = await fetch(url, config);
       
       if (!response.ok) {
+        // Try to get a more detailed error message from the backend
+        const errorBody = await response.text();
+        console.error('API Error Body:', errorBody);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      // Handle cases where the response might be empty
+      const text = await response.text();
+      return text ? JSON.parse(text) : {};
+
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -34,17 +40,20 @@ class ApiService {
   }
 
   // Auth endpoints
+  async register(data: { name: string, email: string, password: string, role: string, team: string }) {
+    return this.request('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // All other functions (login, getGoals, etc.) remain the same
+  // ...
+  // Auth endpoints
   async login(email: string, password: string) {
     return this.request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    });
-  }
-
-  async register(email: string, password: string, name: string) {
-    return this.request('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
     });
   }
 
@@ -179,3 +188,4 @@ class ApiService {
 
 // Export a singleton instance
 export const apiService = new ApiService();
+
