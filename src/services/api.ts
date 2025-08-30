@@ -1,7 +1,7 @@
 // API service for communicating with the integrated Cloudflare Pages backend
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.PROD 
-    ? 'https://quota-crushers-api.burrito-bot.workers.dev' 
+    ? '' // In production, the API is on the same domain, so we use a relative path
     : 'http://localhost:8787');
 
 console.log('🔗 API Base URL:', API_BASE_URL || '(same domain)');
