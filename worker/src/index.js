@@ -3,17 +3,19 @@
 // --- HELPER FUNCTIONS (from your original code) ---
 
 // CORS headers for all responses
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+function getCorsHeaders(env) {
+  return {
+    'Access-Control-Allow-Origin': env.CORS_ORIGIN || '*', 
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
 
 // Authentication middleware
 async function authenticate(request, env) {
+  const corsHeaders = getCorsHeaders(env);
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // Return an actual Response object on failure
     return new Response('Unauthorized', { status: 401, headers: corsHeaders });
   }
   
@@ -21,11 +23,9 @@ async function authenticate(request, env) {
   const userJson = await env.SALES_DATA.get(`user:${token}`);
   
   if (!userJson) {
-    // Return an actual Response object on failure
     return new Response('Invalid token', { status: 401, headers: corsHeaders });
   }
   
-  // Attach the parsed user to the request for later use and return null on success
   request.user = JSON.parse(userJson);
   return null; 
 }
@@ -63,7 +63,8 @@ async function updateGoalProgress(env, userId, activity) {
 
 export default {
   async fetch(request, env, ctx) {
-    // Handle CORS preflight requests first
+    const corsHeaders = getCorsHeaders(env);
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
@@ -73,7 +74,6 @@ export default {
 
     // --- PUBLIC ROUTES ---
 
-    // Health check
     if (path === '/api/health' && request.method === 'GET') {
       const healthStatus = {
         status: 'ok',
@@ -85,7 +85,6 @@ export default {
       });
     }
 
-    // User Login
     if (path === '/api/auth/login' && request.method === 'POST') {
       try {
         const { email, password } = await request.json();
@@ -100,16 +99,16 @@ export default {
         const token = btoa(`${email}:${Date.now()}`);
         await env.SALES_DATA.put(`user:${token}`, JSON.stringify(user), { expirationTtl: 86400 });
         
-        delete user.password; // Don't send password back
+        delete user.password;
         return new Response(JSON.stringify({ token, user }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       } catch (error) {
+        console.error("Login Error:", error); // Added logging
         return new Response('Login failed', { status: 500, headers: corsHeaders });
       }
     }
 
-    // User Registration
     if (path === '/api/auth/register' && request.method === 'POST') {
        try {
         const userData = await request.json();
@@ -129,25 +128,23 @@ export default {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       } catch (error) {
+        console.error("Registration Error:", error); // Added logging
         return new Response('Registration failed', { status: 500, headers: corsHeaders });
       }
     }
 
     // --- AUTHENTICATED ROUTES ---
-    // All routes below this point require a valid token.
     const authError = await authenticate(request, env);
-    if (authError) return authError; // If authentication fails, return the error response.
+    if (authError) return authError; 
 
-    const user = request.user; // Get the user object attached by the middleware.
+    const user = request.user;
 
-    // Get Goals
     if (path === '/api/goals' && request.method === 'GET') {
       const goalsData = await env.SALES_DATA.get(`goals:${user.id}`);
       const goals = goalsData ? JSON.parse(goalsData) : [];
       return new Response(JSON.stringify(goals), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
     }
 
-    // Create Goal
     if (path === '/api/goals' && request.method === 'POST') {
       const goalData = await request.json();
       const goal = { id: crypto.randomUUID(), ...goalData, userId: user.id, createdAt: new Date().toISOString() };
@@ -158,10 +155,6 @@ export default {
       return new Response(JSON.stringify(goal), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
     }
     
-    // NOTE: Add other routes (Activities, Challenges, etc.) here following the same pattern.
-    // For routes with IDs like /api/goals/:id, you would check `path.startsWith('/api/goals/')`
-    // and then extract the ID from the path string.
-
     // Default "Not Found" for all other requests
     return new Response('Not Found', {
       status: 404,
@@ -169,3 +162,4 @@ export default {
     });
   }
 };
+
